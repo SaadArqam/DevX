@@ -9,7 +9,6 @@ const REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
 export class AuthService {
   /*  REGISTER  */
-
   static async register(name: string, email: string, password: string) {
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -38,7 +37,6 @@ export class AuthService {
   }
 
   /*  LOGIN  */
-
   static async login(email: string, password: string) {
     if (!email || !password) {
       throw new ApiError(400, "Email and password are required");
