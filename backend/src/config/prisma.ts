@@ -8,12 +8,61 @@ const connectionString = `${env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
-// Create PrismaClient with the adapter. Recent Prisma builds using the
-// "client" engine require either an adapter or accelerateUrl.
-export const prisma = new PrismaClient({ adapter,
-	log: [
-		{ level: "info", emit: "stdout" },
-		{ level: "warn", emit: "stdout" },
-		{ level: "error", emit: "stdout" },
-	],
+export const prisma = new PrismaClient({
+  adapter,
+  log: [
+    { level: "info", emit: "stdout" },
+    { level: "warn", emit: "stdout" },
+    { level: "error", emit: "stdout" },
+  ],
+});
+
+/* ================= SOFT DELETE MIDDLEWARE ================= */
+
+prisma.$use(async (params, next) => {
+  const softDeleteModels = ["Blog", "Comment"];
+
+  // Skip if model doesn't support soft delete
+  if (!params.model || !softDeleteModels.includes(params.model)) {
+    return next(params);
+  }
+
+  // 🔹 READ OPERATIONS
+  if (
+    params.action === "findMany" ||
+    params.action === "findFirst"
+  ) {
+    params.args = params.args || {};
+    params.args.where = {
+      ...params.args.where,
+      deletedAt: null,
+    };
+  }
+
+  // 🔹 findUnique → convert to findFirst
+  if (params.action === "findUnique") {
+    params.action = "findFirst";
+    params.args.where = {
+      ...params.args.where,
+      deletedAt: null,
+    };
+  }
+
+  // 🔹 DELETE → SOFT DELETE
+  if (params.action === "delete") {
+    params.action = "update";
+    params.args.data = {
+      deletedAt: new Date(),
+    };
+  }
+
+  // 🔹 DELETE MANY → SOFT DELETE
+  if (params.action === "deleteMany") {
+    params.action = "updateMany";
+    params.args.data = {
+      deletedAt: new Date(),
+    };
+  }
+
+  return next(params);
 });
