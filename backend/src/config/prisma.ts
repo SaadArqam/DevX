@@ -19,7 +19,7 @@ export const prisma = new PrismaClient({
 
 /* ================= SOFT DELETE MIDDLEWARE ================= */
 
-prisma.$use(async (params, next) => {
+(prisma as any).$use(async (params: any, next: any) => {
   const softDeleteModels = ["Blog", "Comment"];
 
   // Skip if model doesn't support soft delete

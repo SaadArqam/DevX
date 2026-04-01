@@ -10,6 +10,11 @@ import {
   blogGetById,
 } from "./blog.controller";
 import commentRoutes from "../comment/comment.routes"
+import {
+  toggleLikeController,
+  toggleBookmarkController,
+  getLikeCountController,
+} from "../engagement/engagement.controller";
 
 
 
@@ -28,4 +33,8 @@ blogRoutes.delete("/:id", authMiddleware, blogDelete);
 blogRoutes.patch("/:id/publish", authMiddleware, blogTogglePublish);
 
 commentRoutes.use("/:blogId/comments", commentRoutes)
+// Engagement endpoints
+blogRoutes.post("/:blogId/like", authMiddleware, toggleLikeController);
+blogRoutes.post("/:blogId/bookmark", authMiddleware, toggleBookmarkController);
+blogRoutes.get("/:blogId/likes/count", getLikeCountController);
 export default blogRoutes;
