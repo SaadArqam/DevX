@@ -1,40 +1,17 @@
 import { Router } from "express";
-import { authMiddleware } from "../middlewares/auth.middleware";
-import {
-  blogCreate,
-  blogGet,
-  blogDelete,
-  blogUpdate,
-  blogTogglePublish,
-  blogGetPublished,
-  blogGetById,
-} from "./blog.controller";
-import commentRoutes from "../comment/comment.routes"
-import {
-  toggleLikeController,
-  toggleBookmarkController,
-  getLikeCountController,
-} from "../engagement/engagement.controller";
+import { BlogController } from "./blog.controller";
+import { authMiddleware, optionalAuth } from "../middlewares/auth.middleware";
+import { validate } from "../middlewares/validate.middleware";
+import { createBlogSchema, updateBlogSchema, blogIdSchema, blogQuerySchema } from "./blog.schema";
 
+const router = Router();
 
+router.get("/", optionalAuth, validate(blogQuerySchema), BlogController.getPublished);
+router.get("/my-blogs", authMiddleware, validate(blogQuerySchema), BlogController.getMyBlogs);
+router.get("/:id", optionalAuth, validate(blogIdSchema), BlogController.getById);
 
-const blogRoutes = Router();
+router.post("/", authMiddleware, validate(createBlogSchema), BlogController.create);
+router.put("/:id", authMiddleware, validate(updateBlogSchema), BlogController.update);
+router.delete("/:id", authMiddleware, validate(blogIdSchema), BlogController.delete);
 
-blogRoutes.post("/", authMiddleware, blogCreate);
-
-blogRoutes.get("/me", authMiddleware, blogGet);
-blogRoutes.get("/:id", blogGetById);
-blogRoutes.get("/", blogGetPublished);
-
-blogRoutes.patch("/:id", authMiddleware, blogUpdate);
-
-blogRoutes.delete("/:id", authMiddleware, blogDelete);
-
-blogRoutes.patch("/:id/publish", authMiddleware, blogTogglePublish);
-
-commentRoutes.use("/:blogId/comments", commentRoutes)
-// Engagement endpoints
-blogRoutes.post("/:blogId/like", authMiddleware, toggleLikeController);
-blogRoutes.post("/:blogId/bookmark", authMiddleware, toggleBookmarkController);
-blogRoutes.get("/:blogId/likes/count", getLikeCountController);
-export default blogRoutes;
+export default router;

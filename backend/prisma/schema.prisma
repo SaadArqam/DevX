@@ -4,6 +4,7 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,6 +12,8 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+
 
 enum Role {
   AUTHOR
@@ -24,35 +27,34 @@ model User {
   password String
   role     Role   @default(AUTHOR)
 
-  blogs Blog[]
+  blogs    Blog[]
+  comments Comment[]
+  refreshTokens RefreshToken[]
+  likes      Like[]
+  bookmarks  Bookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  comments Comment[]
-  refreshTokens RefreshToken[]
-
-  like Like[]
-  bookmark Bookmark[]
-
-
 }
 
 model Blog {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   title     String
   content   String
-  published Boolean @default(false)
+  published Boolean  @default(false)
 
-  authorId Int
-  author   User @relation(fields: [authorId], references: [id])
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+
+  comments  Comment[]
+  likes      Like[]
+  bookmarks  Bookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete
 
-  comments Comment[]
-  like Like[]
-  bookmark Bookmark[]
+  @@index([authorId])
 }
 
 model Comment {
@@ -63,14 +65,15 @@ model Comment {
   authorId Int
   parentId Int?
 
-  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  blog     Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies Comment[] @relation("CommentReplies")
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete
 
   @@index([blogId])
   @@index([authorId])
@@ -83,6 +86,9 @@ model RefreshToken {
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  userAgent String?
+  ip        String?
+
   expiresAt DateTime
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -90,14 +96,14 @@ model RefreshToken {
   @@index([userId])
 }
 
-model Like{
-  id Int @id @default(autoincrement())
-
+model Like {
+  id     Int @id @default(autoincrement())
   userId Int
   blogId Int
 
-  user User @relation(fields: [userId],references: [id])
-  blog Blog @relation(fields: [blogId],references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
 
   @@unique([userId, blogId])
@@ -105,13 +111,12 @@ model Like{
 }
 
 model Bookmark {
-  id        Int      @id @default(autoincrement())
+  id     Int @id @default(autoincrement())
+  userId Int
+  blogId Int
 
-  userId    Int
-  blogId    Int
-
-  user      User     @relation(fields: [userId], references: [id])
-  blog      Blog     @relation(fields: [blogId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 

@@ -1,14 +1,13 @@
 import { prisma } from "../config/prisma";
 import bcrypt from "bcrypt";
 import { ApiError } from "../utils/ApiError";
-import { signToken } from "../utils/jwt";
+import { generateAccessToken } from "../utils/jwt";
 import { generateRefreshToken, hashToken } from "../utils/token";
-import { Role } from "@prisma/client";
+import logger from "../utils/logger";
 
 const REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
 export class AuthService {
-  /*  REGISTER  */
   static async register(name: string, email: string, password: string) {
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -26,43 +25,39 @@ export class AuthService {
         email,
         password: hashedPassword,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
     });
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    };
+    return user;
   }
 
-  /*  LOGIN  */
-  static async login(email: string, password: string) {
-    if (!email || !password) {
-      throw new ApiError(400, "Email and password are required");
-    }
-
+  static async login(email: string, password: string, ip: string, userAgent: string) {
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      logger.warn({ email, ip }, "Failed login attempt: User not found");
       throw new ApiError(401, "Invalid credentials");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
+      logger.warn({ email, ip }, "Failed login attempt: Incorrect password");
       throw new ApiError(401, "Invalid credentials");
     }
 
-    // Access token (15m)
-    const accessToken = signToken({
+    const accessToken = generateAccessToken({
       userId: user.id,
-      role: user.role as Role,
+      role: user.role,
     });
 
-    // Refresh token (random)
     const refreshToken = generateRefreshToken();
     const tokenHash = hashToken(refreshToken);
 
@@ -74,6 +69,8 @@ export class AuthService {
         tokenHash,
         userId: user.id,
         expiresAt,
+        ip,
+        userAgent,
       },
     });
 
@@ -89,11 +86,9 @@ export class AuthService {
     };
   }
 
-  /*  REFRESH  */
-
   static async refresh(refreshToken: string) {
     if (!refreshToken) {
-      throw new ApiError(400, "Refresh token required");
+      throw new ApiError(401, "Refresh token required");
     }
 
     const tokenHash = hashToken(refreshToken);
@@ -103,19 +98,14 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!storedToken) {
-      throw new ApiError(401, "Invalid refresh token");
+    if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
+      if (storedToken) {
+        logger.warn({ userId: storedToken.userId }, "Potential refresh token reuse attack detected");
+        await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+      }
+      throw new ApiError(401, "Invalid or expired refresh token");
     }
 
-    if (storedToken.revoked) {
-      throw new ApiError(401, "Token revoked");
-    }
-
-    if (storedToken.expiresAt < new Date()) {
-      throw new ApiError(401, "Refresh token expired");
-    }
-
-    // Rotate (delete old)
     await prisma.refreshToken.delete({
       where: { id: storedToken.id },
     });
@@ -131,10 +121,12 @@ export class AuthService {
         tokenHash: newTokenHash,
         userId: storedToken.userId,
         expiresAt: newExpiresAt,
+        ip: storedToken.ip,
+        userAgent: storedToken.userAgent,
       },
     });
 
-    const newAccessToken = signToken({
+    const newAccessToken = generateAccessToken({
       userId: storedToken.user.id,
       role: storedToken.user.role,
     });
@@ -145,19 +137,16 @@ export class AuthService {
     };
   }
 
-  /*  LOGOUT  */
-
   static async logout(refreshToken: string) {
-    if (!refreshToken) {
-      throw new ApiError(400, "Refresh token required");
-    }
-
     const tokenHash = hashToken(refreshToken);
-
     await prisma.refreshToken.deleteMany({
       where: { tokenHash },
     });
+  }
 
-    return true;
+  static async logoutAll(userId: number) {
+    await prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
   }
 }

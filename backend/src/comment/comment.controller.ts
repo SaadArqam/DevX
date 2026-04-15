@@ -1,97 +1,39 @@
 import { Request, Response } from "express";
-import { AuthRequest } from "../middlewares/auth.middleware";
+import { CommentService } from "./comment.service";
 import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/ApiError";
-import {
-  createComment,
-  getCommentsByBlog,
-  updateComment,
-  deleteComment,
-} from "./comment.service";
+import { ApiResponse } from "../utils/ApiResponse";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
-/* ================= CREATE ================= */
+export class CommentController {
+  static create = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.blogId);
+    const { content, parentId } = req.body;
+    const userId = req.user!.userId;
 
-export const createCommentController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    const blogId = Number(req.params.blogId);
+    const comment = await CommentService.create(blogId, userId, content, parentId);
+    res.status(201).json(new ApiResponse(201, comment, "Comment added successfully"));
+  });
 
-    if (!req.user) {
-      throw new ApiError(401, "Unauthorized");
-    }
+  static getByBlog = asyncHandler(async (req: Request, res: Response) => {
+    const blogId = parseInt(req.params.blogId);
+    const comments = await CommentService.getCommentsByBlog(blogId);
+    res.status(200).json(new ApiResponse(200, comments, "Comments fetched successfully"));
+  });
 
-    const userId = req.user.userId;
+  static update = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const commentId = parseInt(req.params.id);
+    const { content } = req.body;
+    const { userId, role } = req.user!;
 
-    const comment = await createComment(blogId, userId, req.body);
+    const comment = await CommentService.update(commentId, userId, role, content);
+    res.status(200).json(new ApiResponse(200, comment, "Comment updated successfully"));
+  });
 
-    res.status(201).json({
-      success: true,
-      message: "Comment created successfully",
-      data: comment,
-    });
-  }
-);
+  static delete = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const commentId = parseInt(req.params.id);
+    const { userId, role } = req.user!;
 
-/* ================= GET ================= */
-
-interface BlogParams {
-  blogId: string;
+    await CommentService.softDelete(commentId, userId, role);
+    res.status(200).json(new ApiResponse(200, null, "Comment deleted successfully"));
+  });
 }
-
-export const getCommentsController = asyncHandler(
-  async (req: Request<BlogParams>, res: Response) => {
-    const blogId = Number(req.params.blogId);
-
-    const comments = await getCommentsByBlog(blogId);
-
-    res.status(200).json({
-      success: true,
-      data: comments,
-    });
-  }
-);
-
-/* ================= UPDATE ================= */
-
-export const updateCommentController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    if (!req.user) {
-      throw new ApiError(401, "Unauthorized");
-    }
-
-    const commentId = Number(req.params.commentId);
-    const { userId, role } = req.user;
-
-    const updated = await updateComment(
-      commentId,
-      userId,
-      role as any, // If needed, change AuthRequest role to Prisma Role type
-      req.body.content
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Comment updated successfully",
-      data: updated,
-    });
-  }
-);
-
-/* ================= DELETE ================= */
-
-export const deleteCommentController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    if (!req.user) {
-      throw new ApiError(401, "Unauthorized");
-    }
-
-    const commentId = Number(req.params.commentId);
-    const { userId, role } = req.user;
-
-    await deleteComment(commentId, userId, role as any);
-
-    res.status(200).json({
-      success: true,
-      message: "Comment deleted successfully",
-    });
-  }
-);

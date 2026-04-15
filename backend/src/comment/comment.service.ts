@@ -1,154 +1,72 @@
 import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/ApiError";
-import { Role } from "@prisma/client";
+import logger from "../utils/logger";
 
-interface CreateCommentInput {
-  content: string;
-  parentId?: number;
-}
+export class CommentService {
+  static async create(blogId: number, userId: number, content: string, parentId?: number) {
+    const blog = await prisma.blog.findUnique({ where: { id: blogId } });
+    if (!blog) throw new ApiError(404, "Blog not found");
 
-/* ================= CREATE ================= */
+    if (parentId) {
+      const parent = await prisma.comment.findUnique({ where: { id: parentId } });
+      if (!parent) throw new ApiError(404, "Parent comment not found");
+      if (parent.blogId !== blogId) throw new ApiError(400, "Comment belongs to another blog");
+    }
 
-export const createComment = async (
-  blogId: number,
-  userId: number,
-  input: CreateCommentInput
-) => {
-  const { content, parentId } = input;
-
-  const blog = await prisma.blog.findUnique({
-    where: { id: blogId },
-  });
-
-  if (!blog) {
-    throw new ApiError(404, "Blog not found");
+    logger.debug({ blogId, userId }, "Creating comment");
+    return await prisma.comment.create({
+      data: { content, blogId, authorId: userId, parentId },
+      include: { author: { select: { id: true, name: true } } },
+    });
   }
 
-  if (parentId) {
-    const parentComment = await prisma.comment.findUnique({
-      where: { id: parentId },
+  static async getCommentsByBlog(blogId: number) {
+    const comments = await prisma.comment.findMany({
+      where: { blogId, deletedAt: null },
+      include: { author: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
     });
 
-    if (!parentComment) {
-      throw new ApiError(404, "Parent comment not found");
-    }
+    const map = new Map();
+    const roots: any[] = [];
 
-    if (parentComment.blogId !== blogId) {
-      throw new ApiError(
-        400,
-        "Parent comment does not belong to this blog"
-      );
-    }
+    comments.forEach((c: any) => map.set(c.id, { ...c, replies: [] }));
+    comments.forEach((c: any) => {
+      if (c.parentId && map.has(c.parentId)) {
+        map.get(c.parentId).replies.push(map.get(c.id));
+      } else if (!c.parentId) {
+        roots.push(map.get(c.id));
+      }
+    });
+
+    return roots;
   }
 
-  return prisma.comment.create({
-    data: {
-      content,
-      blogId,
-      authorId: userId,
-      parentId: parentId ?? null,
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
-};
+  static async update(commentId: number, userId: number, role: string, content: string) {
+    const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new ApiError(404, "Comment not found");
 
-/* ================= GET NESTED ================= */
+    if (role !== "ADMIN" && comment.authorId !== userId) throw new ApiError(403, "Forbidden");
 
-export const getCommentsByBlog = async (blogId: number) => {
-  const blog = await prisma.blog.findUnique({
-    where: { id: blogId },
-  });
-
-  if (!blog) {
-    throw new ApiError(404, "Blog not found");
+    logger.debug({ commentId, userId }, "Updating comment");
+    return await prisma.comment.update({
+      where: { id: commentId },
+      data: { content },
+    });
   }
 
-  const comments = await prisma.comment.findMany({
-    where: { blogId },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  static async softDelete(commentId: number, userId: number, role: string) {
+    const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new ApiError(404, "Comment not found");
 
-  const map = new Map<number, any>();
-  const roots: any[] = [];
+    if (role !== "ADMIN" && comment.authorId !== userId) throw new ApiError(403, "Forbidden");
 
-  comments.forEach((comment) => {
-    map.set(comment.id, { ...comment, replies: [] });
-  });
+    logger.info({ commentId, userId }, "Soft deleting comment");
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
 
-  comments.forEach((comment) => {
-    if (comment.parentId) {
-      map.get(comment.parentId)?.replies.push(map.get(comment.id));
-    } else {
-      roots.push(map.get(comment.id));
-    }
-  });
-
-  return roots;
-};
-
-/* ================= UPDATE ================= */
-
-export const updateComment = async (
-  commentId: number,
-  userId: number,
-  role: Role,
-  content: string
-) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
-
-  if (!comment) {
-    throw new ApiError(404, "Comment not found");
+    return true;
   }
-
-  if (role !== "ADMIN" && comment.authorId !== userId) {
-    throw new ApiError(403, "Unauthorized to update this comment");
-  }
-
-  return prisma.comment.update({
-    where: { id: commentId },
-    data: { content },
-  });
-};
-
-/* ================= DELETE ================= */
-
-export const deleteComment = async (
-  commentId: number,
-  userId: number,
-  role: Role
-) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: commentId },
-  });
-
-  if (!comment) {
-    throw new ApiError(404, "Comment not found");
-  }
-
-  if (role !== "ADMIN" && comment.authorId !== userId) {
-    throw new ApiError(403, "Unauthorized to delete this comment");
-  }
-
-  await prisma.comment.delete({
-    where: { id: commentId },
-  });
-
-  return true;
-};
+}

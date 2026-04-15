@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
+import { verifyAccessToken } from "../utils/jwt";
 import { ApiError } from "../utils/ApiError";
 
 export interface AuthRequest extends Request {
@@ -11,27 +11,38 @@ export interface AuthRequest extends Request {
 
 export const authMiddleware = (
   req: AuthRequest,
-  _res: Response,
-  next: NextFunction,
+  res: Response,
+  next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
+  const token = req.header("Authorization")?.replace("Bearer ", "");
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new ApiError(401, "Unauthorized");
+  if (!token) {
+    throw new ApiError(401, "Unauthorized: No token provided");
   }
-
-  const token = authHeader.split(" ")[1];
 
   try {
-    const payload = verifyToken(token);
-
-    req.user = {
-      userId: payload.userId,
-      role: payload.role,
-    };
-
+    const decoded = verifyAccessToken(token);
+    req.user = decoded;
     next();
-  } catch (err) {
-    throw new ApiError(401, "Invalid or expired token");
+  } catch (error) {
+    throw new ApiError(401, error instanceof Error ? error.message : "Unauthorized");
   }
+};
+
+export const optionalAuth = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+
+  if (token) {
+    try {
+      const decoded = verifyAccessToken(token);
+      req.user = decoded;
+    } catch (error) {
+      // Ignore invalid token for optional auth
+    }
+  }
+  next();
 };

@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "./env";
+import logger from "../utils/logger";
 
 const connectionString = `${env.DATABASE_URL}`;
 
@@ -17,52 +18,37 @@ export const prisma = new PrismaClient({
   ],
 });
 
-/* ================= SOFT DELETE MIDDLEWARE ================= */
+/* ================= SOFT DELETE READ FILTERING ================= */
+// This middleware ensures that soft-deleted items are excluded from find operations
+// but allows hard deletes if explicitly called (though services should use softDelete).
 
-(prisma as any).$use(async (params: any, next: any) => {
+prisma.$use(async (params, next) => {
   const softDeleteModels = ["Blog", "Comment"];
 
-  // Skip if model doesn't support soft delete
   if (!params.model || !softDeleteModels.includes(params.model)) {
     return next(params);
   }
 
-  // 🔹 READ OPERATIONS
-  if (
-    params.action === "findMany" ||
-    params.action === "findFirst"
-  ) {
+  // 🔹 READ OPERATIONS: Auto-filter deletedAt: null
+  if (["findMany", "findFirst", "findUnique", "count", "aggregate"].includes(params.action)) {
     params.args = params.args || {};
     params.args.where = {
       ...params.args.where,
       deletedAt: null,
     };
+    
+    // Convert findUnique to findFirst to support arbitrary where filters
+    if (params.action === "findUnique") {
+      params.action = "findFirst";
+    }
   }
 
-  // 🔹 findUnique → convert to findFirst
-  if (params.action === "findUnique") {
-    params.action = "findFirst";
-    params.args.where = {
-      ...params.args.where,
-      deletedAt: null,
-    };
-  }
-
-  // 🔹 DELETE → SOFT DELETE
-  if (params.action === "delete") {
-    params.action = "update";
-    params.args.data = {
-      deletedAt: new Date(),
-    };
-  }
-
-  // 🔹 DELETE MANY → SOFT DELETE
-  if (params.action === "deleteMany") {
-    params.action = "updateMany";
-    params.args.data = {
-      deletedAt: new Date(),
-    };
-  }
+  // NOTE: delete and deleteMany are NOT overridden here.
+  // Explicit soft delete logic is moved to Service Layer.
 
   return next(params);
 });
+
+prisma.$connect()
+  .then(() => logger.info("Prisma connected to Database"))
+  .catch((err) => logger.error("Prisma connection failed", err));

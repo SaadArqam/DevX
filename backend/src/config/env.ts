@@ -1,17 +1,23 @@
+import { z } from "zod";
 import dotenv from "dotenv";
+
 dotenv.config();
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`Missing env var: ${key}`);
-  }
-  return value;
+const envSchema = z.object({
+  PORT: z.string().transform(Number).default("3000"),
+  DATABASE_URL: z.string().url(),
+  ACCESS_TOKEN_SECRET: z.string().min(32),
+  REFRESH_TOKEN_SECRET: z.string().min(32),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  CORS_ORIGIN: z.string().default("*"),
+  REDIS_URL: z.string().url().optional(),
+});
+
+const _env = envSchema.safeParse(process.env);
+
+if (!_env.success) {
+  console.error("❌ Invalid environment variables:", _env.error.format());
+  process.exit(1);
 }
 
-export const env = {
-  PORT: Number(process.env.PORT ?? 3000),
-  DATABASE_URL: requireEnv("DATABASE_URL"),
-  JWT_SECRET: requireEnv("JWT_SECRET"),
-  NODE_ENV: process.env.NODE_ENV ?? "development",
-};
+export const env = _env.data;

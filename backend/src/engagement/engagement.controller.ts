@@ -1,47 +1,33 @@
-import { Request, Response } from "express";
-import { AuthRequest } from "../middlewares/auth.middleware";
+import { Response } from "express";
+import { EngagementService } from "./engagement.service";
 import { asyncHandler } from "../utils/asyncHandler";
-import {
-  toggleLike,
-  toggleBookmark,
-  getLikeCount,
-  getUserBookmarks,
-} from "./engagement.service";
+import { ApiResponse } from "../utils/ApiResponse";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
-export const toggleLikeController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    const blogId = Number(req.params.blogId);
+export class EngagementController {
+  static toggleLike = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.blogId);
     const userId = req.user!.userId;
+    const result = await EngagementService.toggleLike(blogId, userId);
+    res.status(200).json(new ApiResponse(200, result, result.liked ? "Blog liked" : "Blog unliked"));
+  });
 
-    const result = await toggleLike(blogId, userId);
-
-    res.status(200).json({ success: true, liked: result.liked });
-  }
-);
-
-export const toggleBookmarkController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
-    const blogId = Number(req.params.blogId);
+  static toggleBookmark = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.blogId);
     const userId = req.user!.userId;
+    const result = await EngagementService.toggleBookmark(blogId, userId);
+    res.status(200).json(new ApiResponse(200, result, result.bookmarked ? "Blog bookmarked" : "Bookmark removed"));
+  });
 
-    const result = await toggleBookmark(blogId, userId);
-
-    res.status(200).json({ success: true, bookmarked: result.bookmarked });
-  }
-);
-
-export const getLikeCountController = asyncHandler(
-  async (req: Request, res: Response) => {
-    const blogId = Number(req.params.blogId);
-    const count = await getLikeCount(blogId);
-    res.status(200).json({ success: true, count });
-  }
-);
-
-export const getUserBookmarksController = asyncHandler(
-  async (req: AuthRequest, res: Response) => {
+  static getBookmarks = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
-    const data = await getUserBookmarks(userId);
-    res.status(200).json({ success: true, data });
-  }
-);
+    const bookmarks = await EngagementService.getUserBookmarks(userId);
+    res.status(200).json(new ApiResponse(200, bookmarks, "Bookmarks fetched successfully"));
+  });
+
+  static getLikeCount = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.blogId);
+    const count = await EngagementService.getLikeCount(blogId);
+    res.status(200).json(new ApiResponse(200, { count }, "Like count fetched"));
+  });
+}

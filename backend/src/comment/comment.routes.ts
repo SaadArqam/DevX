@@ -1,22 +1,14 @@
-import { Router } from "express"
-import {
-  createCommentController,
-  getCommentsController,
-  updateCommentController,
-  deleteCommentController
-} from "./comment.controller"
-import { authMiddleware } from "../middlewares/auth.middleware"
+import { Router } from "express";
+import { CommentController } from "./comment.controller";
+import { authMiddleware } from "../middlewares/auth.middleware";
+import { validate } from "../middlewares/validate.middleware";
+import { createCommentSchema, commentIdSchema, updateCommentSchema } from "./comment.schema";
 
-const commentRoutes = Router({ mergeParams: true })
+const router = Router();
 
+router.get("/blog/:blogId", validate(createCommentSchema.pick({ params: true })), CommentController.getByBlog);
+router.post("/blog/:blogId", authMiddleware, validate(createCommentSchema), CommentController.create);
+router.put("/:id", authMiddleware, validate(updateCommentSchema), CommentController.update);
+router.delete("/:id", authMiddleware, validate(commentIdSchema), CommentController.delete);
 
-commentRoutes.post("/", authMiddleware, createCommentController)
-
-
-commentRoutes.get("/", getCommentsController)
-
-commentRoutes.patch("/:commentId", authMiddleware, updateCommentController);
-
-commentRoutes.delete("/:commentId", authMiddleware, deleteCommentController);
-
-export default commentRoutes
+export default router;

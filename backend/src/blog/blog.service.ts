@@ -1,261 +1,153 @@
 import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/ApiError";
+import logger from "../utils/logger";
 
-export class BlogCrud {
-  // CREATE
+export class BlogService {
   static async create(title: string, content: string, authorId: number) {
-    try {
-      if (!title || !content) {
-        throw new ApiError(400, "Title and content are required");
-      }
-      const blog = await prisma.blog.create({
-        data: {
-          title,
-          content,
-          authorId,
-          published: false,
-        },
-      });
-      return blog;
-    } catch (err: any) {
-      if (err?.code && err?.meta) {
-        console.error("Prisma error code:", err.code);
-        console.error("Prisma error meta:", err.meta);
-      }
-
-      console.error("BlogCrud.create error:", err?.message ?? err);
-      throw err;
-    }
+    logger.info({ authorId, title }, "Creating new blog");
+    return await prisma.blog.create({
+      data: { title, content, authorId },
+    });
   }
 
-  // READ
-  static async get(authorId: number) {
-    try {
-      const blogs = await prisma.blog.findMany({
-        where: {
-          authorId: authorId,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-
-      return blogs;
-    } catch (err: any) {
-      if (err?.code && err?.meta) {
-        console.error("Prisma error code:", err.code);
-        console.error("Prisma error meta:", err.meta);
-      }
-
-      console.error("BlogCrud.getMyBlogs error:", err?.message ?? err);
-      throw err;
-    }
-  }
-
-  // READ — PUBLIC BLOGS (WITH PAGINATION + SEARCH)
   static async getPublished(
     page: number = 1,
     limit: number = 10,
     search?: string,
+    currentUserId?: number
   ) {
-    try {
-      const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
+    const where: any = {
+      published: true,
+      deletedAt: null,
+      ...(search && {
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { content: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
 
-      const blogs = await prisma.blog.findMany({
-        where: {
-          published: true,
-          ...(search && {
-            title: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }),
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
+    const [blogs, total] = await Promise.all([
+      prisma.blog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
         include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          author: { select: { id: true, name: true } },
+          _count: { select: { likes: true, comments: true } },
         },
-      });
+      }),
+      prisma.blog.count({ where }),
+    ]);
 
-      const total = await prisma.blog.count({
-        where: {
-          published: true,
-          ...(search && {
-            title: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }),
-        },
-      });
-
-      return {
-        data: blogs,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    } catch (err: any) {
-      console.error("BlogCrud.getPublished error:", err?.message ?? err);
-      throw err;
+    if (blogs.length === 0) {
+      return { blogs: [], pagination: { total, page, limit, totalPages: 0 } };
     }
+
+    let userLikes = new Set<number>();
+    let userBookmarks = new Set<number>();
+
+    if (currentUserId) {
+      const blogIds = blogs.map((b) => b.id);
+      const [likes, bookmarks] = await Promise.all([
+        prisma.like.findMany({
+          where: { userId: currentUserId, blogId: { in: blogIds } },
+          select: { blogId: true },
+        }),
+        prisma.bookmark.findMany({
+          where: { userId: currentUserId, blogId: { in: blogIds } },
+          select: { blogId: true },
+        }),
+      ]);
+      userLikes = new Set(likes.map((l) => l.blogId));
+      userBookmarks = new Set(bookmarks.map((b) => b.blogId));
+    }
+
+    const formattedBlogs = blogs.map((blog) => ({
+      ...blog,
+      likesCount: blog._count.likes,
+      commentsCount: blog._count.comments,
+      isLiked: userLikes.has(blog.id),
+      isBookmarked: userBookmarks.has(blog.id),
+      _count: undefined,
+    }));
+
+    return {
+      blogs: formattedBlogs,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  // READ — SINGLE BLOG BY ID
-  static async getById(blogId: number) {
-    try {
-      const blog = await prisma.blog.findFirst({
-        where: {
-          id: blogId,
-          published: true,
-        },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
-
-      if (!blog) {
-        throw new ApiError(404, "Blog not found");
-      }
-
-      return blog;
-    } catch (err: any) {
-      if (err?.code && err?.meta) {
-        console.error("Prisma error code:", err.code);
-        console.error("Prisma error meta:", err.meta);
-      }
-      console.error("BlogCrud.getById error:", err?.message ?? err);
-      throw err;
-    }
-  }
-
-  // UPDATE
-  static async update(
-  blogId: number,
-  authorId: number,
-  role: string,
-  title?: string,
-  content?: string
-) {
-  try {
-    let blog;
-
-    if (role === "ADMIN") {
-      blog = await prisma.blog.findUnique({
-        where: { id: blogId },
-      });
-    } else {
-      blog = await prisma.blog.findFirst({
-        where: {
-          id: blogId,
-          authorId: authorId,
-        },
-      });
-    }
-
-    if (!blog) {
-      throw new ApiError(404, "Blog not found or unauthorized");
-    }
-
-    const updatedBlog = await prisma.blog.update({
-      where: { id: blogId },
-      data: {
-        title: title ?? blog.title,
-        content: content ?? blog.content,
+  static async getById(blogId: number, currentUserId?: number) {
+    const blog = await prisma.blog.findFirst({
+      where: { id: blogId, deletedAt: null },
+      include: {
+        author: { select: { id: true, name: true } },
+        _count: { select: { likes: true, comments: true } },
       },
     });
 
-    return updatedBlog;
-  } catch (err: any) {
-    console.error("BlogCrud.update error:", err?.message ?? err);
-    throw err;
+    if (!blog) throw new ApiError(404, "Blog not found");
+
+    let isLiked = false;
+    let isBookmarked = false;
+
+    if (currentUserId) {
+      const [like, bookmark] = await Promise.all([
+        prisma.like.findUnique({ where: { userId_blogId: { userId: currentUserId, blogId } } }),
+        prisma.bookmark.findUnique({ where: { userId_blogId: { userId: currentUserId, blogId } } }),
+      ]);
+      isLiked = !!like;
+      isBookmarked = !!bookmark;
+    }
+
+    return {
+      ...blog,
+      likesCount: blog._count.likes,
+      commentsCount: blog._count.comments,
+      isLiked,
+      isBookmarked,
+      _count: undefined,
+    };
   }
-}
 
-
-  // UPDATE — PUBLISH / UNPUBLISH
-  static async togglePublish(
+  static async update(
     blogId: number,
     authorId: number,
-    publish: boolean,
+    role: string,
+    data: { title?: string; content?: string; published?: boolean }
   ) {
-    try {
-      const blog = await prisma.blog.findFirst({
-        where: {
-          id: blogId,
-          authorId: authorId,
-        },
-      });
+    const blog = await prisma.blog.findUnique({ where: { id: blogId } });
 
-      if (!blog) {
-        throw new ApiError(404, "Blog not found or unauthorized");
-      }
+    if (!blog || blog.deletedAt) throw new ApiError(404, "Blog not found");
+    if (role !== "ADMIN" && blog.authorId !== authorId) throw new ApiError(403, "Unauthorized");
 
-      const updatedBlog = await prisma.blog.update({
-        where: { id: blogId },
-        data: {
-          published: publish,
-        },
-      });
-
-      return updatedBlog;
-    } catch (err: any) {
-      if (err?.code && err?.meta) {
-        console.error("Prisma error code:", err.code);
-        console.error("Prisma error meta:", err.meta);
-      }
-      console.error("BlogCrud.togglePublish error:", err?.message ?? err);
-      throw err;
-    }
+    logger.info({ blogId, authorId }, "Updating blog");
+    return await prisma.blog.update({
+      where: { id: blogId },
+      data,
+    });
   }
 
-  // DELETE
-  static async delete(blogId: number, authorId: number, role: string) {
-    try {
-      let blog;
+  static async softDelete(blogId: number, authorId: number, role: string) {
+    const blog = await prisma.blog.findUnique({ where: { id: blogId } });
 
-      if (role === "ADMIN") {
-        blog = await prisma.blog.findUnique({
-          where: { id: blogId },
-        });
-      } else {
-        blog = await prisma.blog.findFirst({
-          where: {
-            id: blogId,
-            authorId: authorId,
-          },
-        });
-      }
+    if (!blog || blog.deletedAt) throw new ApiError(404, "Blog not found");
+    if (role !== "ADMIN" && blog.authorId !== authorId) throw new ApiError(403, "Unauthorized");
 
-      if (!blog) {
-        throw new ApiError(404, "Blog not found or unauthorized");
-      }
+    logger.info({ blogId, authorId }, "Soft deleting blog");
+    await prisma.blog.update({
+      where: { id: blogId },
+      data: { deletedAt: new Date() },
+    });
 
-      await prisma.blog.delete({
-        where: { id: blogId },
-      });
-
-      return { success: true };
-    } catch (err: any) {
-      console.error("BlogCrud.delete error:", err?.message ?? err);
-      throw err;
-    }
+    return true;
   }
 }

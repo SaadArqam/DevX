@@ -2,20 +2,25 @@ import { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError";
 
 export const errorMiddleware = (
-  err: Error,
-  _req: Request,
+  err: any,
+  req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction
 ) => {
-  if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
-      message: err.message,
-    });
+  let error = err;
+
+  if (!(error instanceof ApiError)) {
+    const statusCode = error.statusCode || 500;
+    const message = error.message || "Something went wrong";
+    error = new ApiError(statusCode, message, [], err.stack);
   }
 
-  console.error(err);
+  const response = {
+    success: false,
+    message: error.message,
+    errors: error.errors,
+    ...(process.env.NODE_ENV === "development" ? { stack: error.stack } : {}),
+  };
 
-  return res.status(500).json({
-    message: "Internal server error",
-  });
+  return res.status(error.statusCode).json(response);
 };

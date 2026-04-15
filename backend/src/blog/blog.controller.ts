@@ -1,112 +1,56 @@
-import { BlogCrud } from "./blog.service";
-import { AuthRequest } from "../middlewares/auth.middleware";
 import { Request, Response } from "express";
+import { BlogService } from "./blog.service";
 import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/ApiError";
+import { ApiResponse } from "../utils/ApiResponse";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
-export const blogCreate = asyncHandler(
-  async (req: AuthRequest, res: Response): Promise<void> => {
+import logger from "../utils/logger";
+
+export class BlogController {
+  static create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { title, content } = req.body;
+    const authorId = req.user!.userId;
+    const blog = await BlogService.create(title, content, authorId);
+    res.status(201).json(new ApiResponse(201, blog, "Blog created successfully"));
+  });
 
+  static getPublished = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
+    const currentUserId = req.user?.userId;
+
+    const { blogs, pagination } = await BlogService.getPublished(page, limit, search, currentUserId);
+    res.status(200).json(new ApiResponse(200, blogs, "Blogs fetched successfully", pagination));
+  });
+
+  static getById = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.id);
+    const currentUserId = req.user?.userId;
+    const blog = await BlogService.getById(blogId, currentUserId);
+    res.status(200).json(new ApiResponse(200, blog, "Blog fetched successfully"));
+  });
+
+  static update = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.id);
+    const { title, content, published } = req.body;
+    const { userId, role } = req.user!;
+
+    const blog = await BlogService.update(blogId, userId, role, { title, content, published });
+    res.status(200).json(new ApiResponse(200, blog, "Blog updated successfully"));
+  });
+
+  static delete = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const blogId = parseInt(req.params.id);
+    const { userId, role } = req.user!;
+
+    await BlogService.softDelete(blogId, userId, role);
+    res.status(200).json(new ApiResponse(200, null, "Blog deleted successfully"));
+  });
+
+  static getMyBlogs = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user!.userId;
-
-    const blog = await BlogCrud.create(title, content, userId);
-
-    res.status(201).json({
-      message: "Blog created successfully",
-      blog,
-    });
-  }
-);
-
-export const blogGet = asyncHandler(
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const userId = req.user!.userId;
-
-    const blogs = await BlogCrud.get(userId);
-
-    res.status(200).json({
-      blogs,
-    });
-  }
-);
-
-export const blogGetPublished = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const search = req.query.search as string | undefined;
-
-    const result = await BlogCrud.getPublished(page, limit, search);
-
-    res.status(200).json(result);
-  }
-);
-
-export const blogGetById = asyncHandler(
-  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
-    const blogId = Number(req.params.id);
-
-    const blog = await BlogCrud.getById(blogId);
-
-    res.status(200).json({
-      blog,
-    });
-  }
-);
-
-export const blogTogglePublish = asyncHandler(
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const blogId = Number(req.params.id);
-    const { publish } = req.body;
-    const userId = req.user!.userId;
-
-    if (typeof publish !== "boolean") {
-      throw new ApiError(400, "`publish` must be boolean");
-    }
-
-    const blog = await BlogCrud.togglePublish(blogId, userId, publish);
-
-    res.status(200).json({
-      message: publish ? "Blog published" : "Blog unpublished",
-      blog,
-    });
-  }
-);
-
-export const blogUpdate = asyncHandler(
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const blogId = Number(req.params.id);
-    const { title, content } = req.body;
-    const userId = req.user!.userId;
-    const role = req.user!.role;
-
-    const updatedBlog = await BlogCrud.update(
-      blogId,
-      userId,
-      role,
-      title,
-      content
-    );
-
-    res.status(200).json({
-      message: "Blog updated successfully",
-      blog: updatedBlog,
-    });
-  }
-);
-
-export const blogDelete = asyncHandler(
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const blogId = Number(req.params.id);
-    const userId = req.user!.userId;
-    const role = req.user!.role;
-
-    await BlogCrud.delete(blogId, userId, role);
-
-    res.status(200).json({
-      message: "Blog deleted successfully",
-    });
-  }
-);
-
+    const blogs = await BlogService.getMyBlogs(userId);
+    res.status(200).json(new ApiResponse(200, blogs, "Your blogs fetched successfully"));
+  });
+}

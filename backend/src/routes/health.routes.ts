@@ -1,17 +1,12 @@
-import { Router, Request, Response } from "express";
-import { ApiError } from "../utils/ApiError";
-import { asyncHandler } from "../utils/asyncHandler";
+import { Router } from "express";
 
 const router = Router();
 
-router.get(
-  "/health",
-  asyncHandler(async (_req: Request, res: Response) => {
-    res.status(200).json({
-      status: "ok",
-      message: "OOP Express server running 🚀",
-    });
-  }),
-);
+router.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 export default router;
