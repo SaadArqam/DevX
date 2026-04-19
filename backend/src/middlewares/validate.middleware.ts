@@ -3,18 +3,19 @@ import { AnyZodObject, ZodError } from "zod";
 import { ApiError } from "../utils/ApiError";
 
 export const validate =
-  (schema: { body?: AnyZodObject; query?: AnyZodObject; params?: AnyZodObject }) =>
+  (schema: AnyZodObject) =>
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (schema.body) {
-        req.body = schema.body.parse(req.body);
-      }
-      if (schema.query) {
-        req.query = schema.query.parse(req.query) as any;
-      }
-      if (schema.params) {
-        req.params = schema.params.parse(req.params) as any;
-      }
+      const parsed = schema.parse({
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      });
+
+      if (parsed.body) req.body = parsed.body;
+      if (parsed.query) req.query = parsed.query as any;
+      if (parsed.params) req.params = parsed.params as any;
+
       next();
     } catch (error) {
       if (error instanceof ZodError) {
@@ -22,8 +23,9 @@ export const validate =
           path: issue.path.join("."),
           message: issue.message,
         }));
-        throw new ApiError(400, "Validation failed", errorMessages);
+        return next(new ApiError(400, "Validation failed", errorMessages));
       }
       next(error);
     }
   };
+
