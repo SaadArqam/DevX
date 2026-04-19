@@ -34,7 +34,7 @@ export const PostCard = ({ blog }: { blog: Blog }) => {
               layoutId={`post-image-${blog.id}`}
               src={blog.coverImage}
               alt={blog.title}
-              className="w-full h-full object-cover grayscale group-hover:sepia group-hover:scale-105 transition-all duration-700 ease-out"
+              className="w-full h-full object-cover  group-hover:sepia group-hover:scale-105 transition-all duration-700 ease-out"
             />
           ) : (
             <motion.div layoutId={`post-image-${blog.id}`} className="w-full h-full bg-divider flex items-center justify-center">
