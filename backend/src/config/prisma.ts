@@ -1,14 +1,22 @@
 import { PrismaClient } from "@prisma/client";
-import logger from "../utils/logger";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-export const prisma = new PrismaClient({
-  log: [
-    { level: "info", emit: "stdout" },
-    { level: "warn", emit: "stdout" },
-    { level: "error", emit: "stdout" },
-  ],
+const connectionString = process.env.DATABASE_URL!;
+
+// Create pg pool
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false, // REQUIRED for Render
+  },
 });
 
-prisma.$connect()
-  .then(() => logger.info("Prisma connected to Database"))
-  .catch((err: any) => logger.error("Prisma connection failed"));
+// Create adapter
+const adapter = new PrismaPg(pool);
+
+// Prisma client with adapter
+export const prisma = new PrismaClient({
+  adapter,
+  log: ["error", "warn"],
+});
