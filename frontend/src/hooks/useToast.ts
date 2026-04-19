@@ -18,7 +18,9 @@ interface ToastStore {
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   addToast: (message, type) => {
-    const id = Math.random().toString(36).substring(2, 9);
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 11);
     set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
   },
   removeToast: (id) =>

@@ -6,13 +6,23 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 import logger from "../utils/logger";
 import { env } from "../config/env";
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: env.NODE_ENV === "production",
+  sameSite: "lax" as const, // 'strict' breaks cross-origin localhost; switch to 'strict' in prod with same domain
+  path: "/api/v1/auth",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 export class AuthController {
   static register = asyncHandler(async (req: Request, res: Response) => {
     const { name, email, password } = req.body;
     const user = await AuthService.register(name, email, password);
-    
+
     logger.info({ email: user.email }, "User registered successfully");
-    res.status(201).json(new ApiResponse(201, user, "User registered successfully"));
+    res
+      .status(201)
+      .json(new ApiResponse(201, user, "User registered successfully"));
   });
 
   static login = asyncHandler(async (req: Request, res: Response) => {
@@ -28,29 +38,21 @@ export class AuthController {
 
     res
       .status(200)
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
       .json(new ApiResponse(200, { user, accessToken }, "Login successful"));
   });
 
   static refresh = asyncHandler(async (req: Request, res: Response) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    const { accessToken, refreshToken } = await AuthService.refresh(incomingRefreshToken);
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+    const { accessToken, refreshToken } =
+      await AuthService.refresh(incomingRefreshToken);
 
     logger.debug("Token refreshed successfully");
 
     res
       .status(200)
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
       .json(new ApiResponse(200, { accessToken }, "Token refreshed"));
   });
 
@@ -59,7 +61,7 @@ export class AuthController {
     if (refreshToken) {
       await AuthService.logout(refreshToken);
     }
-    
+
     logger.info("User logged out");
 
     res
@@ -68,6 +70,7 @@ export class AuthController {
         httpOnly: true,
         secure: env.NODE_ENV === "production",
         sameSite: "lax",
+        path: "/api/v1/auth",
       })
       .json(new ApiResponse(200, null, "Logout successful"));
   });
@@ -78,13 +81,14 @@ export class AuthController {
       await AuthService.logoutAll(userId);
       logger.info({ userId }, "User logged out from all devices");
     }
-    
+
     res
       .status(200)
       .clearCookie("refreshToken", {
         httpOnly: true,
         secure: env.NODE_ENV === "production",
         sameSite: "lax",
+        path: "/api/v1/auth",
       })
       .json(new ApiResponse(200, null, "Logged out from all sessions"));
   });

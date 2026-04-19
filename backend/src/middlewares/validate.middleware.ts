@@ -7,8 +7,8 @@ export const validate =
   (req: Request, res: Response, next: NextFunction) => {
     try {
       if (schemas.body) req.body = schemas.body.parse(req.body);
-      if (schemas.query) req.query = schemas.query.parse(req.query);
-      if (schemas.params) req.params = schemas.params.parse(req.params);
+if (schemas.query) Object.assign(req.query, schemas.query.parse(req.query));
+if (schemas.params) req.params = schemas.params.parse(req.params);
 
       next();
     } catch (error) {

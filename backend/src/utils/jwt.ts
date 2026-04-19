@@ -1,21 +1,28 @@
 import jwt from "jsonwebtoken";
+import { env } from "../config/env";
 import { ApiError } from "./ApiError";
 
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "access_secret";
+export interface JwtPayload {
+  userId: number;
+  role: string;
+}
 
-export const generateAccessToken = (payload: { userId: number; role: string }) => {
-  return jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-    expiresIn: "15m",
+export const generateAccessToken = (payload: JwtPayload): string => {
+  return jwt.sign(payload, env.ACCESS_TOKEN_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions["expiresIn"],
   });
 };
 
-export const verifyAccessToken = (token: string) => {
+export const verifyAccessToken = (token: string): JwtPayload => {
   try {
-    return jwt.verify(token, ACCESS_TOKEN_SECRET) as {
-      userId: number;
-      role: string;
-    };
+    return jwt.verify(token, env.ACCESS_TOKEN_SECRET) as JwtPayload;
   } catch (error) {
-    throw new ApiError(401, "Invalid or expired access token");
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new ApiError(401, "Access token expired");
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new ApiError(401, "Invalid access token");
+    }
+    throw new ApiError(401, "Token verification failed");
   }
 };

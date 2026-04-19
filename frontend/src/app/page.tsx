@@ -59,8 +59,7 @@ export default function FeedPage() {
     setHasNewPosts(false);
   };
 
-  const blogs = data?.pages.flatMap(page => page.data) || [];
-
+const blogs = data?.pages.flatMap(page => page.data) || [];
   return (
     <div className="py-8 px-4 sm:px-6 relative min-h-screen">
       <AnimatePresence>

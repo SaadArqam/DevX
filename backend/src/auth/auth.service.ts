@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError";
 import { generateAccessToken } from "../utils/jwt";
 import { generateRefreshToken, hashToken } from "../utils/token";
 import logger from "../utils/logger";
+import { env } from "../config/env";
 
 const REFRESH_TOKEN_EXPIRES_DAYS = 7;
 
@@ -14,10 +15,10 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ApiError(400, "Email already registered");
+      throw new ApiError(409, "Email already registered");
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
 
     const user = await prisma.user.create({
       data: {
@@ -30,13 +31,19 @@ export class AuthService {
         name: true,
         email: true,
         role: true,
+        createdAt: true,
       },
     });
 
     return user;
   }
 
-  static async login(email: string, password: string, ip: string, userAgent: string) {
+  static async login(
+    email: string,
+    password: string,
+    ip: string,
+    userAgent: string
+  ) {
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -98,14 +105,25 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
+    if (
+      !storedToken ||
+      storedToken.revoked ||
+      storedToken.expiresAt < new Date()
+    ) {
       if (storedToken) {
-        logger.warn({ userId: storedToken.userId }, "Potential refresh token reuse attack detected");
-        await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+        logger.warn(
+          { userId: storedToken.userId },
+          "Potential refresh token reuse attack detected"
+        );
+        // Delete all tokens for user on suspected reuse (token theft protection)
+        await prisma.refreshToken.deleteMany({
+          where: { userId: storedToken.userId },
+        });
       }
       throw new ApiError(401, "Invalid or expired refresh token");
     }
 
+    // Rotate: delete old, issue new
     await prisma.refreshToken.delete({
       where: { id: storedToken.id },
     });

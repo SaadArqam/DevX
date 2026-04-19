@@ -2,11 +2,16 @@ import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/ApiError";
 import logger from "../utils/logger";
 
+const MAX_LIMIT = 50;
+
 export class BlogService {
   static async create(title: string, content: string, authorId: number) {
     logger.info({ authorId, title }, "Creating new blog");
     return await prisma.blog.create({
       data: { title, content, authorId },
+      include: {
+        author: { select: { id: true, name: true } },
+      },
     });
   }
 
@@ -16,14 +21,17 @@ export class BlogService {
     search?: string,
     currentUserId?: number
   ) {
-    const skip = (page - 1) * limit;
-    const where: any = {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), MAX_LIMIT);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
       published: true,
       deletedAt: null,
       ...(search && {
         OR: [
-          { title: { contains: search, mode: "insensitive" } },
-          { content: { contains: search, mode: "insensitive" } },
+          { title: { contains: search, mode: "insensitive" as const } },
+          { content: { contains: search, mode: "insensitive" as const } },
         ],
       }),
     };
@@ -33,7 +41,7 @@ export class BlogService {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: limit,
+        take: safeLimit,
         include: {
           author: { select: { id: true, name: true } },
           _count: { select: { likes: true, comments: true } },
@@ -41,10 +49,6 @@ export class BlogService {
       }),
       prisma.blog.count({ where }),
     ]);
-
-    if (blogs.length === 0) {
-      return { blogs: [], pagination: { total, page, limit, totalPages: 0 } };
-    }
 
     let userLikes = new Set<number>();
     let userBookmarks = new Set<number>();
@@ -65,6 +69,8 @@ export class BlogService {
       userBookmarks = new Set(bookmarks.map((b) => b.blogId));
     }
 
+    const totalPages = Math.ceil(total / safeLimit);
+
     const formattedBlogs = blogs.map((blog) => ({
       ...blog,
       likesCount: blog._count.likes,
@@ -78,9 +84,11 @@ export class BlogService {
       blogs: formattedBlogs,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: safePage,
+        limit: safeLimit,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
       },
     };
   }
@@ -91,14 +99,17 @@ export class BlogService {
     limit: number = 10,
     search?: string
   ) {
-    const skip = (page - 1) * limit;
-    const where: any = {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), MAX_LIMIT);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
       authorId,
       deletedAt: null,
       ...(search && {
         OR: [
-          { title: { contains: search, mode: "insensitive" } },
-          { content: { contains: search, mode: "insensitive" } },
+          { title: { contains: search, mode: "insensitive" as const } },
+          { content: { contains: search, mode: "insensitive" as const } },
         ],
       }),
     };
@@ -108,7 +119,7 @@ export class BlogService {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: limit,
+        take: safeLimit,
         include: {
           author: { select: { id: true, name: true } },
           _count: { select: { likes: true, comments: true } },
@@ -116,6 +127,8 @@ export class BlogService {
       }),
       prisma.blog.count({ where }),
     ]);
+
+    const totalPages = Math.ceil(total / safeLimit);
 
     const formattedBlogs = blogs.map((blog) => ({
       ...blog,
@@ -128,13 +141,14 @@ export class BlogService {
       blogs: formattedBlogs,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: safePage,
+        limit: safeLimit,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
       },
     };
   }
-
 
   static async getById(blogId: number, currentUserId?: number) {
     const blog = await prisma.blog.findFirst({
@@ -152,8 +166,12 @@ export class BlogService {
 
     if (currentUserId) {
       const [like, bookmark] = await Promise.all([
-        prisma.like.findUnique({ where: { userId_blogId: { userId: currentUserId, blogId } } }),
-        prisma.bookmark.findUnique({ where: { userId_blogId: { userId: currentUserId, blogId } } }),
+        prisma.like.findUnique({
+          where: { userId_blogId: { userId: currentUserId, blogId } },
+        }),
+        prisma.bookmark.findUnique({
+          where: { userId_blogId: { userId: currentUserId, blogId } },
+        }),
       ]);
       isLiked = !!like;
       isBookmarked = !!bookmark;
@@ -178,12 +196,16 @@ export class BlogService {
     const blog = await prisma.blog.findUnique({ where: { id: blogId } });
 
     if (!blog || blog.deletedAt) throw new ApiError(404, "Blog not found");
-    if (role !== "ADMIN" && blog.authorId !== authorId) throw new ApiError(403, "Unauthorized");
+    if (role !== "ADMIN" && blog.authorId !== authorId)
+      throw new ApiError(403, "Forbidden: you do not own this blog");
 
     logger.info({ blogId, authorId }, "Updating blog");
     return await prisma.blog.update({
       where: { id: blogId },
       data,
+      include: {
+        author: { select: { id: true, name: true } },
+      },
     });
   }
 
@@ -191,7 +213,8 @@ export class BlogService {
     const blog = await prisma.blog.findUnique({ where: { id: blogId } });
 
     if (!blog || blog.deletedAt) throw new ApiError(404, "Blog not found");
-    if (role !== "ADMIN" && blog.authorId !== authorId) throw new ApiError(403, "Unauthorized");
+    if (role !== "ADMIN" && blog.authorId !== authorId)
+      throw new ApiError(403, "Forbidden: you do not own this blog");
 
     logger.info({ blogId, authorId }, "Soft deleting blog");
     await prisma.blog.update({

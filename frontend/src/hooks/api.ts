@@ -8,14 +8,14 @@ export const useBlogs = (search?: string, tag?: string) => {
   return useInfiniteQuery({
     queryKey: ['blogs', { search, tag }],
     queryFn: async ({ pageParam = 1 }) => {
-      const res = await api.get<ApiResponse<PaginatedResponse<Blog>>>('/blogs', {
+      const res = await api.get('/blogs', {
         params: { page: pageParam, limit: 10, search, tag },
       });
-      return res.data.data;
+      return res.data; // { success, message, data: Blog[], meta: {...} }
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      if (lastPage.page < lastPage.totalPages) return lastPage.page + 1;
+      if (lastPage.meta.hasNext) return lastPage.meta.page + 1;
       return undefined;
     },
   });

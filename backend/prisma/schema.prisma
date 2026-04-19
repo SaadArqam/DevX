@@ -1,19 +1,14 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
-
 
 enum Role {
   AUTHOR
@@ -27,34 +22,37 @@ model User {
   password String
   role     Role   @default(AUTHOR)
 
-  blogs    Blog[]
-  comments Comment[]
+  blogs         Blog[]
+  comments      Comment[]
   refreshTokens RefreshToken[]
-  likes      Like[]
-  bookmarks  Bookmark[]
+  likes         Like[]
+  bookmarks     Bookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Blog {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   title     String
   content   String
-  published Boolean  @default(false)
+  published Boolean @default(false)
 
-  authorId  Int
-  author    User     @relation(fields: [authorId], references: [id])
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   comments  Comment[]
-  likes      Like[]
-  bookmarks  Bookmark[]
+  likes     Like[]
+  bookmarks Bookmark[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete
 
   @@index([authorId])
+  @@index([published])
+  @@index([createdAt])
+  @@index([deletedAt])
 }
 
 model Comment {
@@ -65,14 +63,14 @@ model Comment {
   authorId Int
   parentId Int?
 
-  blog     Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  blog   Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  author User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies  Comment[] @relation("CommentReplies")
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies Comment[] @relation("CommentReplies")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime? // Soft delete
 
   @@index([blogId])
@@ -81,10 +79,10 @@ model Comment {
 }
 
 model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  tokenHash String   @unique
+  id        Int    @id @default(autoincrement())
+  tokenHash String @unique
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   userAgent String?
   ip        String?
@@ -94,6 +92,8 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }
 
 model Like {
@@ -101,13 +101,14 @@ model Like {
   userId Int
   blogId Int
 
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@unique([userId, blogId])
   @@index([blogId])
+  @@index([userId])
 }
 
 model Bookmark {
@@ -115,12 +116,12 @@ model Bookmark {
   userId Int
   blogId Int
 
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  blog   Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@unique([userId, blogId])
   @@index([userId])
+  @@index([blogId])
 }
-

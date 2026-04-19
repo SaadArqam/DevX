@@ -5,6 +5,7 @@ import helmet from "helmet";
 import pino from "pino-http";
 import routes from "../routes";
 import { errorMiddleware } from "../middlewares/error.middleware";
+import { sanitizeMiddleware } from "../middlewares/sanitize.middleware";
 import { env } from "../config/env";
 import logger from "../utils/logger";
 import { apiRateLimiter } from "../middlewares/rateLimiter.middleware";
@@ -19,44 +20,56 @@ export class Server {
     this.initializeErrorHandling();
   }
 
-  private initializeMiddlewares(): void {
-    // Security headers
-    this.app.use(helmet());
+private initializeMiddlewares(): void {
+  // 1. CORS first — before anything touches headers
+  const corsOptions: cors.CorsOptions = {
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  };
+  this.app.use(cors(corsOptions));
 
-    // Logging
-    this.app.use(pino({ logger }));
+  // 2. Helmet after CORS
+  this.app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", env.CORS_ORIGIN],
+          frameSrc: ["'none'"],
+        },
+      },
+      xFrameOptions: { action: "deny" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      xContentTypeOptions: true,
+    })
+  );
 
-    // CORS
-    this.app.use(
-      cors({
-        origin: env.CORS_ORIGIN,
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-      })
-    );
-
-    // Body parsing
-    this.app.use(express.json({ limit: "16kb" }));
-    this.app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-
-    // Cookies
-    this.app.use(cookieParser());
-
-    // Global Rate Limiting
-    this.app.use("/api", apiRateLimiter);
-  }
+  // 3. Rest stays the same...
+  this.app.use(pino({ logger }));
+  this.app.use(express.json({ limit: "16kb" }));
+  this.app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+  this.app.use(cookieParser());
+  this.app.use(sanitizeMiddleware);
+  this.app.use("/api", apiRateLimiter);
+}
 
   private initializeRoutes(): void {
     this.app.use("/api/v1", routes);
 
     // Health check
-    this.app.get("/health", (req, res) => {
-      res.status(200).json({ status: "UP", timestamp: new Date() });
+    this.app.get("/health", (_req, res) => {
+      res
+        .status(200)
+        .json({ status: "UP", timestamp: new Date().toISOString() });
     });
 
     // 404 handler
-    this.app.use((req, res, next) => {
+    this.app.use((req, res) => {
       res.status(404).json({
         success: false,
         message: `Route not found: ${req.originalUrl}`,

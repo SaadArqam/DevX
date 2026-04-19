@@ -7,3 +7,6 @@ npm-debug.log*
 # Prisma
 /src/generated/prisma
 schema.prisma.backup
+.env.local.example
+.env.example
+

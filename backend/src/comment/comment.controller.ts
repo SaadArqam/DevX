@@ -7,7 +7,10 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 export class CommentController {
   static create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const blogId = Number(req.params.blogId);
-    const { content, parentId } = req.body;
+    const { content, parentId } = req.body as {
+      content: string;
+      parentId?: number;
+    };
     const userId = req.user!.userId;
 
     const comment = await CommentService.create(blogId, userId, content, parentId);
@@ -17,16 +20,20 @@ export class CommentController {
   static getByBlog = asyncHandler(async (req: Request, res: Response) => {
     const blogId = Number(req.params.blogId);
     const comments = await CommentService.getCommentsByBlog(blogId);
-    res.status(200).json(new ApiResponse(200, comments, "Comments fetched successfully"));
+    res
+      .status(200)
+      .json(new ApiResponse(200, comments, "Comments fetched successfully"));
   });
 
   static update = asyncHandler(async (req: AuthRequest, res: Response) => {
     const commentId = Number(req.params.id);
-    const { content } = req.body;
+    const { content } = req.body as { content: string };
     const { userId, role } = req.user!;
 
     const comment = await CommentService.update(commentId, userId, role, content);
-    res.status(200).json(new ApiResponse(200, comment, "Comment updated successfully"));
+    res
+      .status(200)
+      .json(new ApiResponse(200, comment, "Comment updated successfully"));
   });
 
   static delete = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -34,6 +41,6 @@ export class CommentController {
     const { userId, role } = req.user!;
 
     await CommentService.softDelete(commentId, userId, role);
-    res.status(200).json(new ApiResponse(200, null, "Comment deleted successfully"));
+    res.status(204).send(); // 204 No Content for successful deletes
   });
 }
