@@ -6,6 +6,7 @@ import { Heart } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
+import { springConfig } from '@/lib/animations';
 
 interface LikeButtonProps {
   blogId: number;
@@ -30,59 +31,41 @@ export const LikeButton = ({ blogId, initialLiked = false, initialCount = 0 }: L
 
     if (!initialLiked) {
       setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 1000);
+      setTimeout(() => setIsAnimating(false), 500);
     }
 
-    // Call mutation with object containing id and whether it's currently liked (to determine POST or DELETE)
     mutate({ id: blogId, isLiked: !!initialLiked });
   };
 
   return (
     <button
       onClick={handleLike}
-      className={`flex items-center space-x-2 transition-colors relative group ${
-        initialLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
-      }`}
+      className="flex items-center space-x-2 transition-colors relative group hover:bg-neutral-100 p-1 -m-1 sharp-corners"
       disabled={isPending}
     >
       <div className="relative">
         <motion.div
-          animate={isAnimating ? { scale: [1, 1.4, 0.9, 1.1, 1] } : { scale: 1 }}
-          transition={{ duration: 0.5 }}
+          animate={isAnimating ? { scale: [1, 1.3, 0.9, 1] } : { scale: 1 }}
+          transition={springConfig.mechanical}
         >
-          <Heart size={18} fill={initialLiked ? 'currentColor' : 'none'} className={initialLiked ? 'text-red-500' : ''} />
+          <Heart 
+            size={16} 
+            strokeWidth={1.5} 
+            fill={initialLiked ? '#CC0000' : 'none'} 
+            className={initialLiked ? 'text-editorial' : 'text-ink group-hover:-translate-y-1 transition-transform'} 
+          />
         </motion.div>
-
-        {isAnimating && (
-          <div className="absolute inset-0 pointer-events-none">
-            {[...Array(6)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-red-400 rounded-full"
-                initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-                animate={{
-                  opacity: 0,
-                  scale: 0,
-                  x: Math.cos((i * 60 * Math.PI) / 180) * 20,
-                  y: Math.sin((i * 60 * Math.PI) / 180) * 20,
-                }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                style={{ top: '40%', left: '40%' }}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="h-5 overflow-hidden flex items-center">
         <AnimatePresence mode="popLayout">
           <motion.span
             key={initialCount}
-            initial={{ y: 20, opacity: 0 }}
+            initial={{ y: 15, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -20, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="text-sm font-medium block"
+            exit={{ y: -15, opacity: 0 }}
+            transition={springConfig.fast}
+            className="text-xs font-mono font-bold mt-0.5"
           >
             {initialCount}
           </motion.span>

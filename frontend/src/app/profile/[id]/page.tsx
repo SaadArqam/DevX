@@ -3,7 +3,7 @@
 import { useProfile, useUserBlogs, useUserBookmarks } from '@/hooks/api';
 import { motion, useInView, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-import { scaleIn } from '@/lib/animations';
+import { scaleIn, springConfig } from '@/lib/animations';
 import { Loader2 } from 'lucide-react';
 import { PostCard } from '@/components/blog/PostCard';
 import { Blog } from '@/types';
@@ -31,18 +31,14 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
   const { data: bookmarkedBlogs, isLoading: isLoadingBookmarks, isError: bookmarksError } = useUserBookmarks(params.id);
 
   if (isLoadingProfile || isLoadingBlogs || isLoadingBookmarks) {
-    return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
+    return <div className="flex justify-center p-20 bg-newsprint min-h-screen"><Loader2 className="animate-spin text-ink" size={32} /></div>;
   }
 
   if (profileError || blogsError || bookmarksError || !profileData) {
-    return <div className="p-20 text-center text-red-500">Failed to load profile</div>;
+    return <div className="p-20 text-center font-mono font-bold text-editorial uppercase border-2 border-editorial bg-red-50 m-6 sharp-corners">Failed to locate profile records.</div>;
   }
 
   const user = profileData?.data || profileData;
-
-  console.log("PROFILE:", user);
-  console.log("BLOGS:", blogs);
-  console.log("BOOKMARKS:", bookmarkedBlogs);
 
   const blogsData = blogs ?? [];
   const bookmarkedData = bookmarkedBlogs?.map((b: any) => b.blog || b) ?? [];
@@ -51,16 +47,16 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
   const slideVariants = {
     hidden: (direction: number) => ({
-      x: direction > 0 ? 50 : -50,
+      x: direction > 0 ? 30 : -30,
       opacity: 0,
     }),
     visible: {
       x: 0,
       opacity: 1,
-      transition: { duration: 0.3, ease: 'easeOut' as const }
+      transition: springConfig.fast
     },
     exit: (direction: number) => ({
-      x: direction > 0 ? -50 : 50,
+      x: direction > 0 ? -30 : 30,
       opacity: 0,
     })
   };
@@ -68,85 +64,77 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
   const direction = tab === 'posts' ? -1 : 1;
 
   return (
-    <div className="py-12 px-6">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center space-x-6 mb-12 bg-gray-900 border border-gray-800 p-8 rounded-2xl"
-      >
-        <div className="w-24 h-24 rounded-full bg-blue-900/50 border-2 border-blue-500 flex items-center justify-center text-blue-300 font-bold text-3xl shrink-0 overflow-hidden">
-          {user.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : user.name.charAt(0)}
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">{user.name}</h1>
-          <p className="text-gray-400 font-medium">@{user.username}</p>
-          {user.bio && <p className="text-gray-300 mt-2 text-sm max-w-lg">{user.bio}</p>}
-        </div>
-      </motion.div>
+    <div className="bg-newsprint min-h-screen pb-20">
+      <div className="bg-white border-b-4 border-ink p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center md:items-start space-y-4"
+        >
+          <div className="w-24 h-24 border-2 border-ink sharp-corners flex items-center justify-center text-ink font-serif font-black text-4xl bg-divider overflow-hidden">
+            {user.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover grayscale" /> : user.name.charAt(0)}
+          </div>
+          <div className="text-center md:text-left">
+            <h1 className="text-5xl font-serif font-black italic text-ink tracking-tight mb-1">{user.name}</h1>
+            <p className="font-mono text-sm uppercase text-neutral-500">@{user.username}</p>
+            {user.bio && <p className="font-body text-ink mt-4 text-sm max-w-lg leading-relaxed">{user.bio}</p>}
+          </div>
+        </motion.div>
+      </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-12">
+      <div className="grid grid-cols-3 border-b-2 border-ink bg-white">
         {[
-          { label: 'Posts', value: user.postsCount },
-          { label: 'Likes', value: user.likesCount },
-          { label: 'Followers', value: user.followersCount }
+          { label: 'Published Dispatches', value: user.postsCount },
+          { label: 'Endorsements', value: user.likesCount },
+          { label: 'Subscribers', value: user.followersCount }
         ].map(stat => (
-          <div key={stat.label} className="bg-gray-900 border border-gray-800 p-6 rounded-2xl text-center">
-            <p className="text-gray-400 text-sm font-medium mb-1">{stat.label}</p>
-            <p className="text-3xl font-bold text-white">
+          <div key={stat.label} className="p-6 text-center border-r border-[#111111] last:border-r-0 flex flex-col justify-center">
+             <p className="text-4xl lg:text-5xl font-mono font-bold text-ink mb-2">
               <CountUp value={stat.value} />
             </p>
+            <p className="font-sans text-[10px] sm:text-xs font-bold uppercase tracking-widest text-neutral-500">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex border-b border-gray-800 mb-8 relative">
-        <button 
-          onClick={() => setTab('posts')}
-          className={`flex-1 py-4 text-sm font-bold transition-colors ${tab === 'posts' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          My Posts
-        </button>
-        <button 
-          onClick={() => setTab('bookmarks')}
-          className={`flex-1 py-4 text-sm font-bold transition-colors ${tab === 'bookmarks' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          Bookmarks
-        </button>
-        <motion.div 
-          className="absolute bottom-0 h-0.5 bg-blue-500 w-1/2"
-          initial={false}
-          animate={{ x: tab === 'posts' ? '0%' : '100%' }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        />
-      </div>
+      <div className="p-6 mt-8">
+         <div className="flex space-x-4 mb-8">
+            <button 
+               onClick={() => setTab('posts')}
+               className={`px-6 py-2 font-sans font-bold uppercase tracking-widest text-xs border border-ink sharp-corners transition-all ${tab === 'posts' ? 'bg-ink text-white shadow-[2px_2px_0_0_#CC0000]' : 'bg-transparent text-ink hover:bg-neutral-100 hover:shadow-[2px_2px_0_0_#111111]'}`}
+            >
+               Publications
+            </button>
+            <button 
+               onClick={() => setTab('bookmarks')}
+               className={`px-6 py-2 font-sans font-bold uppercase tracking-widest text-xs border border-ink sharp-corners transition-all ${tab === 'bookmarks' ? 'bg-ink text-white shadow-[2px_2px_0_0_#CC0000]' : 'bg-transparent text-ink hover:bg-neutral-100 hover:shadow-[2px_2px_0_0_#111111]'}`}
+            >
+               Archived Marks
+            </button>
+         </div>
 
-      <div className="relative min-h-[400px]">
-        <AnimatePresence custom={direction} mode="wait">
-          <motion.div
-            key={tab}
-            custom={direction}
-            variants={slideVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="w-full flex flex-col space-y-6 pb-20"
-          >
-            {currentBlogs.length > 0 ? currentBlogs.map((blog: Blog, i: number) => (
-              <motion.div 
-                key={blog.id}
-                variants={scaleIn}
-                initial="initial"
-                whileInView="animate"
-                viewport={{ once: true, amount: 0.1 }}
-                className="opacity-100"
-              >
-                <PostCard blog={blog} />
-              </motion.div>
-            )) : (
-              <p className="text-center text-gray-500 py-20 font-medium">No {tab} found.</p>
-            )}
-          </motion.div>
-        </AnimatePresence>
+         <div className="relative min-h-[400px]">
+            <AnimatePresence custom={direction} mode="wait">
+               <motion.div
+               key={tab}
+               custom={direction}
+               variants={slideVariants}
+               initial="hidden"
+               animate="visible"
+               exit="exit"
+               className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t border-l border-[#111111]"
+               >
+               {currentBlogs.length > 0 ? currentBlogs.map((blog: Blog, i: number) => (
+                  <PostCard key={blog.id} blog={blog} />
+               )) : (
+                  <div className="col-span-full border-b border-r border-ink bg-white p-20 text-center flex flex-col items-center justify-center">
+                     <div className="font-serif italic text-2xl text-ink font-bold mb-2">No records found</div>
+                     <p className="font-mono text-xs uppercase text-neutral-400">Database query returned empty for '{tab}'</p>
+                  </div>
+               )}
+               </motion.div>
+            </AnimatePresence>
+         </div>
       </div>
     </div>
   );

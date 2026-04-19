@@ -2,7 +2,6 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Home, Edit3, User, Bookmark, LogOut, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 
@@ -24,51 +23,51 @@ export const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-64 fixed top-0 left-0 h-screen border-r border-gray-800 bg-[#030712] p-6 flex-col justify-between hidden md:flex z-40">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-8 tracking-tighter">DevBlog<span className="text-blue-500">.</span></h1>
-        <nav className="flex flex-col space-y-2">
+    <aside className="w-64 fixed top-0 left-0 h-screen border-r border-[#111111] bg-newsprint flex flex-col justify-between hidden md:flex z-40 mt-[60px]">
+      <div className="pt-8">
+        <nav className="flex flex-col">
           {navLinks.filter((link) => link.show).map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
             return (
-              <Link key={link.name} href={link.href} className="relative flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-900 group">
-                {isActive && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute left-0 w-1 h-full bg-blue-500 rounded-r-full"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  />
-                )}
-                <Icon size={20} className={isActive ? 'text-blue-500' : 'group-hover:text-gray-300'} />
-                <span className={`font-medium ${isActive ? 'text-white' : ''}`}>{link.name}</span>
+              <Link 
+                key={link.name} 
+                href={link.href} 
+                className={`flex items-center space-x-3 px-6 py-4 uppercase tracking-widest text-sm font-sans font-semibold transition-colors hover:bg-neutral-100 ${
+                  isActive ? 'border-l-4 border-editorial text-ink bg-neutral-100' : 'border-l-4 border-transparent text-neutral-600 hover:text-ink'
+                }`}
+              >
+                <Icon size={18} className={isActive ? 'text-editorial' : ''} strokeWidth={isActive ? 2.5 : 1.5} />
+                <span>{link.name}</span>
               </Link>
             );
           })}
         </nav>
       </div>
 
-      <div className="pt-6 border-t border-gray-800">
+      <div className="p-6 border-t border-[#111111] pb-24">
         {isAuthenticated && user ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 w-3/4">
-              <div className="w-10 h-10 rounded-full bg-blue-900/50 border border-blue-500 flex items-center justify-center text-blue-300 font-bold shrink-0">
-                {user.avatar ? <img src={user.avatar} alt="Avatar" className="rounded-full w-full h-full object-cover" /> : user.name.charAt(0)}
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 border border-[#111111] flex items-center justify-center text-ink font-bold font-serif text-lg sharp-corners bg-white overflow-hidden shrink-0">
+                {user.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover grayscale" /> : user.name.charAt(0)}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                <p className="text-xs text-gray-500 truncate">@{user.username}</p>
+                <p className="text-xs uppercase tracking-widest font-sans font-bold text-ink truncate">{user.name}</p>
+                <p className="text-xs font-mono text-neutral-500 truncate">@{user.username}</p>
               </div>
             </div>
-            <button onClick={handleLogout} className="text-gray-500 hover:text-red-500 transition p-2">
-              <LogOut size={18} />
+            <button 
+              onClick={handleLogout} 
+              className="flex items-center justify-center space-x-2 w-full py-2 border border-[#111111] text-ink hover:bg-[#111111] hover:text-white transition-colors text-xs uppercase tracking-widest font-bold sharp-corners"
+            >
+              <LogOut size={14} />
+              <span>Sign Out</span>
             </button>
           </div>
         ) : (
-          <Link href="/auth/login" className="flex items-center justify-center space-x-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">
-            <LogIn size={18} />
+          <Link href="/auth/login" className="flex items-center justify-center space-x-2 w-full py-3 bg-[#111111] text-white hover:bg-neutral-800 transition-colors uppercase tracking-widest text-xs font-bold sharp-corners">
+            <LogIn size={16} />
             <span>Sign In</span>
           </Link>
         )}

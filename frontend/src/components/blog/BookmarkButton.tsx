@@ -6,6 +6,7 @@ import { Bookmark } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import { useState } from 'react';
+import { springConfig } from '@/lib/animations';
 
 interface BookmarkButtonProps {
   blogId: number;
@@ -41,21 +42,23 @@ export const BookmarkButton = ({ blogId, initialBookmarked = false }: BookmarkBu
       <button
         onClick={handleBookmark}
         disabled={isPending}
-        className={`transition-colors relative overflow-hidden ${
-          initialBookmarked ? 'text-blue-500' : 'text-gray-400 hover:text-blue-400'
-        }`}
+        className="transition-transform relative overflow-hidden group hover:-translate-y-1 block p-1 -m-1"
       >
-        <Bookmark size={18} />
+        <Bookmark 
+          size={16} 
+          strokeWidth={1.5}
+          className={initialBookmarked ? 'text-ink' : 'text-ink'} 
+        />
         
         {/* Animated fill overlay using clip-path */}
         {initialBookmarked && (
           <motion.div
             initial={{ clipPath: 'inset(100% 0 0 0)' }}
             animate={{ clipPath: 'inset(0% 0 0 0)' }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="absolute inset-0 text-blue-500"
+            transition={springConfig.fast}
+            className="absolute inset-0 text-ink m-1"
           >
-            <Bookmark size={18} fill="currentColor" />
+            <Bookmark size={16} fill="currentColor" strokeWidth={1} />
           </motion.div>
         )}
       </button>
@@ -64,12 +67,13 @@ export const BookmarkButton = ({ blogId, initialBookmarked = false }: BookmarkBu
       <AnimatePresence>
         {showTooltip && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: -25, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg pointer-events-none whitespace-nowrap"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: -25 }}
+            exit={{ opacity: 0 }}
+            transition={springConfig.fast}
+            className="absolute -top-1 left-1/2 -translate-x-1/2 bg-ink text-white font-mono text-[10px] font-bold px-2 py-1 sharp-corners shadow-[2px_2px_0_0_#CC0000] pointer-events-none whitespace-nowrap z-50 uppercase tracking-widest"
           >
-            Saved!
+            SAVED
           </motion.div>
         )}
       </AnimatePresence>

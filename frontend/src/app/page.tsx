@@ -40,96 +40,78 @@ export default function FeedPage() {
   const blogs: Blog[] = data?.pages.flatMap((page) => page.data ?? []) ?? [];
 
   return (
-    <div className="py-8 px-4 sm:px-6 relative min-h-screen">
-      <div className="mb-8 space-y-4 sticky top-0 bg-[#0a0f1c]/90 backdrop-blur z-30 pt-4 pb-4">
-        <div className="relative">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            size={20}
-          />
+    <div className="relative min-h-screen pb-20">
+      <div className="sticky top-[60px] bg-newsprint z-30 border-b-2 border-[#111111] p-6 shadow-[0_4px_0_0_#111111]">
+        <div className="relative mb-6">
+          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-ink" size={24} strokeWidth={3} />
           <input
             type="text"
-            placeholder="Search articles..."
+            placeholder="SEARCH ENTIRE REGISTRY..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-800 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+            className="w-full bg-transparent border-b-[3px] border-[#111111] py-4 pl-10 pr-4 text-ink font-mono font-bold text-lg focus:outline-none focus:border-editorial transition-colors placeholder:text-neutral-400 sharp-corners"
           />
         </div>
-        <div className="flex space-x-2 overflow-x-auto pb-2">
-          {['react', 'javascript', 'nextjs', 'css', 'framer-motion', 'backend'].map(
-            (tag) => (
-              <button
-                key={tag}
-                onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
-                className={`flex items-center space-x-1 px-4 py-2 rounded-full text-sm font-medium transition-all shrink-0 ${
-                  tagFilter === tag
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-white border border-gray-800'
-                }`}
-              >
-                <Hash size={14} />
-                <span>{tag}</span>
-              </button>
-            )
-          )}
-        </div>
-      </div>
-
-      {isError && (
-        <div className="text-center text-red-500 py-10 bg-red-900/10 rounded-xl border border-red-900/20">
-          <p>Failed to load feed. Please try again later.</p>
-          <button
-            onClick={() => refetch()}
-            className="mt-4 text-blue-500 hover:underline"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <AnimatePresence mode="popLayout">
-          {isLoading ? (
-            Array(4)
-              .fill(0)
-              .map((_, i) => <PostCardSkeleton key={i} />)
-          ) : blogs.length > 0 ? (
-            blogs.map((blog) => (
-              <PostCard key={blog.id} blog={blog} />
-            ))
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="col-span-full py-20 text-center"
+        
+        <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
+          {['react', 'javascript', 'nextjs', 'css', 'framer-motion', 'backend'].map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
+              className={`flex items-center space-x-1 px-4 py-2 border border-[#111111] font-mono text-xs uppercase font-bold transition-colors sharp-corners shrink-0 ${
+                tagFilter === tag ? 'bg-ink text-white shadow-[2px_2px_0_0_#CC0000] translate-x-[-2px] translate-y-[-2px]' : 'bg-transparent text-ink hover:bg-neutral-100 hover:shadow-[2px_2px_0_0_#111111] hover:-translate-y-[2px] hover:-translate-x-[2px]'
+              }`}
             >
-              <div className="bg-gray-900 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-800">
-                <Search size={32} className="text-gray-600" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                No posts found
-              </h3>
-              <p className="text-gray-500">
-                Try adjusting your search or filters.
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <Hash size={14} />
+              <span>{tag}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div ref={loadMoreRef} className="py-8 flex justify-center">
-        {isFetchingNextPage && (
-          <div className="flex space-x-2">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="w-3 h-3 bg-blue-500 rounded-full"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
-              />
-            ))}
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-8 border-b-4 border-ink pb-2">
+          <h2 className="text-4xl font-serif italic font-bold">Latest Dispatches</h2>
+          <span className="bg-editorial text-white px-3 py-1 font-mono uppercase text-xs font-bold sharp-corners">New Posts</span>
+        </div>
+
+        {isError && (
+          <div className="text-center py-10 border-2 border-editorial bg-red-50 mb-8 sharp-corners">
+            <p className="font-mono text-editorial font-bold">Error loading transmission.</p>
+            <button onClick={() => refetch()} className="mt-4 border-b border-editorial text-editorial uppercase tracking-widest text-xs hover:border-transparent">Retry</button>
           </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-t border-l border-[#111111]">
+          <AnimatePresence mode="popLayout">
+            {isLoading ? (
+              Array(4).fill(0).map((_, i) => <PostCardSkeleton key={i} />)
+            ) : blogs.length > 0 ? (
+              blogs.map((blog) => <PostCard key={blog.id} blog={blog} />)
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-32 text-center border-b border-r border-[#111111] bg-white">
+                <Search size={48} className="mx-auto mb-6 text-neutral-300" strokeWidth={1} />
+                <h3 className="text-2xl font-serif font-bold italic mb-2">No transmissions found</h3>
+                <p className="font-mono text-xs text-neutral-500 uppercase">AWAITING SIGNAL PARAMETERS</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div ref={loadMoreRef} className="py-12 flex justify-center border-t-2 border-[#111111] mt-12">
+          {isFetchingNextPage && (
+            <div className="flex space-x-2">
+              {[...Array(3)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="w-4 h-4 bg-ink sharp-corners"
+                  animate={{ scale: [1, 0, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2, ease: "linear" }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

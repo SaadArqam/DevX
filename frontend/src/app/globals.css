@@ -1,25 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=block');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --foreground: #111827;
-  --background: #f9fafb;
-}
-
-.dark {
-  --foreground: #f9fafb;
-  --background: #030712;
+  --foreground: #111111;
+  --background: #F9F9F7;
+  --muted: #E5E5E0;
+  --accent: #CC0000;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  font-family: 'Inter', sans-serif;
 }
 
 @layer utilities {
+  .sharp-corners {
+    border-radius: 0px !important;
+  }
+
+  .newsprint-texture {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  }
+
+  .hard-shadow-hover {
+    transition: all 0.2s ease-out;
+  }
+
+  .hard-shadow-hover:hover {
+    box-shadow: 4px 4px 0px 0px #111111;
+    transform: translate(-2px, -2px);
+  }
+
   .shimmer-bg {
-    background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+    background: linear-gradient(90deg, #E5E5E0 25%, #F9F9F7 50%, #E5E5E0 75%);
     background-size: 1000px 100%;
     animation: shimmer 2s linear infinite;
   }
