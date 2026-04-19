@@ -20,48 +20,61 @@ export class Server {
     this.initializeErrorHandling();
   }
 
-private initializeMiddlewares(): void {
-  // 1. CORS first — before anything touches headers
-  const corsOptions: cors.CorsOptions = {
-    origin: env.CORS_ORIGIN,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
-  };
+  private initializeMiddlewares(): void {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "https://x-blond-delta.vercel.app",
+    ];
 
-  // Handle ALL OPTIONS preflight requests immediately — must come before Helmet
-  this.app.use(cors(corsOptions));
+    // 1. CORS first — before anything touches headers
+    this.app.use(
+      cors({
+        origin: function (origin, callback) {
+          // Allow requests with no origin (server-to-server, curl, etc.)
+          if (!origin) return callback(null, true);
 
-  // 2. Helmet after CORS
-  this.app.use(
-    helmet({
-      // Allow cross-origin fetches (Helmet defaults this to 'same-origin' which blocks our API)
-      crossOriginResourcePolicy: { policy: "cross-origin" },
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", env.CORS_ORIGIN],
-          frameSrc: ["'none'"],
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+
+          return callback(new Error("CORS blocked: " + origin));
         },
-      },
-      xFrameOptions: { action: "deny" },
-      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-      xContentTypeOptions: true,
-    })
-  );
+        credentials: true,
+      })
+    );
 
-  // 3. Rest stays the same...
-  this.app.use(pino({ logger }));
-  this.app.use(express.json({ limit: "16kb" }));
-  this.app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-  this.app.use(cookieParser());
-  this.app.use(sanitizeMiddleware);
-  this.app.use("/api", apiRateLimiter);
-}
+    // 2. Helmet after CORS
+    this.app.use(
+      helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: [
+              "'self'",
+              "http://localhost:3000",
+              "https://x-blond-delta.vercel.app",
+            ],
+            frameSrc: ["'none'"],
+          },
+        },
+        xFrameOptions: { action: "deny" },
+        referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+        xContentTypeOptions: true,
+      })
+    );
+
+    // 3. Rest stays the same...
+    this.app.use(pino({ logger }));
+    this.app.use(express.json({ limit: "16kb" }));
+    this.app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+    this.app.use(cookieParser());
+    this.app.use(sanitizeMiddleware);
+    this.app.use("/api", apiRateLimiter);
+  }
 
   private initializeRoutes(): void {
     this.app.use("/api/v1", routes);
