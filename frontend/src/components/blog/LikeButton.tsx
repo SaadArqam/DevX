@@ -19,12 +19,8 @@ export const LikeButton = ({ blogId, initialLiked = false, initialCount = 0 }: L
   const { toast } = useToast();
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Fallback state if query cache isn't instantly available
-  const [localLiked, setLocalLiked] = useState(initialLiked);
-  const [localCount, setLocalCount] = useState(initialCount);
-
   const handleLike = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigating if inside a Link
+    e.preventDefault();
     if (!isAuthenticated) {
       toast('Please login to like posts', 'error');
       return;
@@ -32,29 +28,29 @@ export const LikeButton = ({ blogId, initialLiked = false, initialCount = 0 }: L
     
     if (isPending) return;
 
-    if (!localLiked) {
+    if (!initialLiked) {
       setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 1000); // 1s animation lock
+      setTimeout(() => setIsAnimating(false), 1000);
     }
 
-    setLocalLiked(!localLiked);
-    setLocalCount(c => (localLiked ? c - 1 : c + 1));
-    mutate(blogId);
+    // Call mutation with object containing id and whether it's currently liked (to determine POST or DELETE)
+    mutate({ id: Number(blogId), isLiked: !!initialLiked });
   };
 
   return (
     <button
       onClick={handleLike}
       className={`flex items-center space-x-2 transition-colors relative group ${
-        localLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
+        initialLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
       }`}
+      disabled={isPending}
     >
       <div className="relative">
         <motion.div
           animate={isAnimating ? { scale: [1, 1.4, 0.9, 1.1, 1] } : { scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Heart size={18} fill={localLiked ? 'currentColor' : 'none'} className={localLiked ? 'text-red-500' : ''} />
+          <Heart size={18} fill={initialLiked ? 'currentColor' : 'none'} className={initialLiked ? 'text-red-500' : ''} />
         </motion.div>
 
         {isAnimating && (
@@ -81,14 +77,14 @@ export const LikeButton = ({ blogId, initialLiked = false, initialCount = 0 }: L
       <div className="h-5 overflow-hidden flex items-center">
         <AnimatePresence mode="popLayout">
           <motion.span
-            key={localCount}
+            key={initialCount}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="text-sm font-medium block"
           >
-            {localCount}
+            {initialCount}
           </motion.span>
         </AnimatePresence>
       </div>

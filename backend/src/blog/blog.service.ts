@@ -146,12 +146,33 @@ export class BlogService {
       prisma.blog.count({ where }),
     ]);
 
+    let userLikes = new Set<number>();
+    let userBookmarks = new Set<number>();
+
+    const blogIds = blogs.map((b) => b.id);
+    if (blogIds.length > 0) {
+      const [likes, bookmarks] = await Promise.all([
+        prisma.like.findMany({
+          where: { userId: authorId, blogId: { in: blogIds } },
+          select: { blogId: true },
+        }),
+        prisma.bookmark.findMany({
+          where: { userId: authorId, blogId: { in: blogIds } },
+          select: { blogId: true },
+        }),
+      ]);
+      userLikes = new Set(likes.map((l) => l.blogId));
+      userBookmarks = new Set(bookmarks.map((b) => b.blogId));
+    }
+
     const totalPages = Math.ceil(total / safeLimit);
 
     const formattedBlogs = blogs.map((blog) => ({
       ...blog,
       likesCount: blog._count.likes,
       commentsCount: blog._count.comments,
+      isLiked: userLikes.has(blog.id),
+      isBookmarked: userBookmarks.has(blog.id),
       _count: undefined,
     }));
 

@@ -6,11 +6,12 @@ import { AuthRequest } from "../middlewares/auth.middleware";
 
 export class CommentController {
   static create = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const blogId = Number(req.params.blogId);
-    const { content, parentId } = req.body as {
+    const { blogId: rawBlogId, content, parentId } = req.body as {
+      blogId: number | string;
       content: string;
       parentId?: number;
     };
+    const blogId = Number(rawBlogId || req.params.blogId);
     const userId = req.user!.userId;
 
     const comment = await CommentService.create(blogId, userId, content, parentId);

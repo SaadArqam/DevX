@@ -103,4 +103,14 @@ export class AuthController {
       })
       .json(new ApiResponse(200, null, "Logged out from all sessions"));
   });
+
+  static me = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    const user = await AuthService.me(userId);
+    res.status(200).json(new ApiResponse(200, user, "User fetched successfully"));
+  });
 }

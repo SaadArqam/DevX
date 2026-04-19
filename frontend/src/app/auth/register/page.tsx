@@ -22,13 +22,20 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    
+    // Add debugging log per prompt rules
+    console.log("REGISTER PAYLOAD:", form);
+    
     try {
       const res = await api.post('/auth/register', form);
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
       router.push('/');
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Registration failed');
+      // Prioritize Zod's specific validation array messages before falling back
+      const specificError = err?.response?.data?.errors?.[0]?.message;
+      const generalMessage = err?.response?.data?.message;
+      setError(specificError || generalMessage || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -62,6 +69,10 @@ export default function RegisterPage() {
                 value={form[field]}
                 onChange={update(field)}
                 required
+                minLength={field === 'password' ? 8 : field === 'username' ? 3 : field === 'name' ? 2 : undefined}
+                maxLength={field === 'password' ? 100 : field === 'username' ? 30 : field === 'name' ? 50 : undefined}
+                pattern={field === 'username' ? '^[a-z0-9_]+$' : undefined}
+                title={field === 'username' ? 'Username can only contain lowercase letters, numbers, and underscores' : undefined}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
               />
             </div>

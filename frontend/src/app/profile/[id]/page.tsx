@@ -1,6 +1,6 @@
 'use client';
 
-import { useProfile } from '@/hooks/api';
+import { useProfile, useUserBlogs, useUserBookmarks } from '@/hooks/api';
 import { motion, useInView, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { scaleIn } from '@/lib/animations';
@@ -25,13 +25,28 @@ const CountUp = ({ value = 0 }: { value?: number }) => {
 
 export default function ProfilePage({ params }: { params: { id: string } }) {
   const [tab, setTab] = useState<'posts' | 'bookmarks'>('posts');
-  const { data: profileData, isLoading, isError } = useProfile(params.id);
+  const { data: profileData, isLoading: isLoadingProfile, isError: profileError } = useProfile();
+  const { data: blogs, isLoading: isLoadingBlogs, isError: blogsError } = useUserBlogs(params.id);
+  const { data: bookmarkedBlogs, isLoading: isLoadingBookmarks, isError: bookmarksError } = useUserBookmarks(params.id);
 
-  if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
-  if (isError || !profileData) return <div className="p-20 text-center text-red-500">Failed to load profile</div>;
+  if (isLoadingProfile || isLoadingBlogs || isLoadingBookmarks) {
+    return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
+  }
 
-  const { user, blogs, bookmarkedBlogs } = profileData;
-  const currentBlogs = tab === 'posts' ? blogs.data : bookmarkedBlogs.data;
+  if (profileError || blogsError || bookmarksError || !profileData) {
+    return <div className="p-20 text-center text-red-500">Failed to load profile</div>;
+  }
+
+  const user = profileData?.data || profileData;
+
+  console.log("PROFILE:", user);
+  console.log("BLOGS:", blogs);
+  console.log("BOOKMARKS:", bookmarkedBlogs);
+
+  const blogsData = blogs ?? [];
+  const bookmarkedData = bookmarkedBlogs?.map((b: any) => b.blog || b) ?? [];
+
+  const currentBlogs = tab === 'posts' ? blogsData : bookmarkedData;
 
   const slideVariants = {
     hidden: (direction: number) => ({

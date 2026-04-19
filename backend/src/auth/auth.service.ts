@@ -171,4 +171,24 @@ export class AuthService {
       where: { userId },
     });
   }
+
+  static async me(userId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    return user;
+  }
 }

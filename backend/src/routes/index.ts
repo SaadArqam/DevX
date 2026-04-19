@@ -7,10 +7,18 @@ import engagementRoutes from "../engagement/engagement.routes";
 
 const router = Router();
 
-router.use("/", healthRoutes);
-router.use("/auth", authRoutes);       // authRateLimiter is already in auth.routes.ts
+console.log("Route mounted: /auth");
+router.use("/auth", authRoutes);
+
+console.log("Route mounted: /blogs");
 router.use("/blogs", blogRoutes);
+
+console.log("Route mounted: /comments");
 router.use("/comments", commentRoutes);
+
+console.log("Route mounted: /engagement");
 router.use("/engagement", engagementRoutes);
+
+router.use("/", healthRoutes);
 
 export default router;

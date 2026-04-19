@@ -17,7 +17,6 @@ export const BookmarkButton = ({ blogId, initialBookmarked = false }: BookmarkBu
   const { isAuthenticated } = useAuthStore();
   const { toast } = useToast();
   
-  const [localBookmarked, setLocalBookmarked] = useState(initialBookmarked);
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -29,11 +28,9 @@ export const BookmarkButton = ({ blogId, initialBookmarked = false }: BookmarkBu
     
     if (isPending) return;
 
-    const newValue = !localBookmarked;
-    setLocalBookmarked(newValue);
-    mutate(blogId);
+    mutate({ id: Number(blogId), isBookmarked: !!initialBookmarked });
 
-    if (newValue) {
+    if (!initialBookmarked) {
       setShowTooltip(true);
       setTimeout(() => setShowTooltip(false), 1500);
     }
@@ -43,14 +40,15 @@ export const BookmarkButton = ({ blogId, initialBookmarked = false }: BookmarkBu
     <div className="relative">
       <button
         onClick={handleBookmark}
+        disabled={isPending}
         className={`transition-colors relative overflow-hidden ${
-          localBookmarked ? 'text-blue-500' : 'text-gray-400 hover:text-blue-400'
+          initialBookmarked ? 'text-blue-500' : 'text-gray-400 hover:text-blue-400'
         }`}
       >
         <Bookmark size={18} />
         
         {/* Animated fill overlay using clip-path */}
-        {localBookmarked && (
+        {initialBookmarked && (
           <motion.div
             initial={{ clipPath: 'inset(100% 0 0 0)' }}
             animate={{ clipPath: 'inset(0% 0 0 0)' }}

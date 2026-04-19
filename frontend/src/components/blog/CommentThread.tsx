@@ -40,6 +40,9 @@ const CommentItem = ({ comment, blogId }: { comment: Comment; blogId: string }) 
           setIsReplying(false);
           setIsExpanded(true);
         },
+        onError: (err: any) => {
+          toast(err.response?.data?.message || 'Failed to post reply', 'error');
+        }
       }
     );
   };
@@ -162,11 +165,18 @@ export const CommentThread = ({ blogId }: { blogId: string }) => {
   const { mutate: createComment, isPending } = useCreateComment();
   const { isAuthenticated } = useAuthStore();
   const [content, setContent] = useState('');
+  const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
-    createComment({ blogId, content }, { onSuccess: () => setContent('') });
+    createComment(
+      { blogId, content },
+      { 
+        onSuccess: () => setContent(''),
+        onError: (err: any) => toast(err.response?.data?.message || 'Failed to post comment', 'error')
+      }
+    );
   };
 
   if (isLoading) {
