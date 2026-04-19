@@ -12,6 +12,7 @@ export const CreatePost = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [coverImage, setCoverImage] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
   const [isPending, setIsPending] = useState(false);
   
@@ -34,6 +35,7 @@ export const CreatePost = () => {
       content: content.trim(),
       status,
       tags: tagsArray,
+      ...(coverImage.trim() && { coverImage: coverImage.trim() })
     };
 
     // 4. VALIDATION
@@ -59,6 +61,7 @@ export const CreatePost = () => {
       setTitle("");
       setContent("");
       setTagsInput("");
+      setCoverImage("");
       setStatus("published");
       
       router.push(`/blog/${res.data.data.id}`);
@@ -100,6 +103,17 @@ export const CreatePost = () => {
             placeholder="Add tags (e.g. #react #node)"
             disabled={isPending}
             className="w-full bg-transparent border-b border-gray-700 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+        </motion.div>
+
+        <motion.div variants={fadeUp}>
+          <input
+            type="url"
+            value={coverImage}
+            onChange={(e) => setCoverImage(e.target.value)}
+            placeholder="Cover Image URL (optional)"
+            disabled={isPending}
+            className="w-full bg-transparent border-b border-gray-700 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors mt-2"
           />
         </motion.div>
 
