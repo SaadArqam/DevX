@@ -3,7 +3,7 @@ import type { Variants } from 'framer-motion';
 export const springConfig = {
   mechanical: { type: 'spring', stiffness: 400, damping: 40 },
   fast: { duration: 0.15, ease: 'easeOut' },
-};
+} as const;
 
 export const fadeIn: Variants = {
   initial: { opacity: 0 },

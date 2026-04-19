@@ -1,7 +1,7 @@
 'use client';
 
 import { useProfile, useUserBlogs, useUserBookmarks } from '@/hooks/api';
-import { motion, useInView, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
+import { motion, useInView, useMotionValue, useTransform, animate, AnimatePresence, Variants } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { scaleIn, springConfig } from '@/lib/animations';
 import { Loader2 } from 'lucide-react';
@@ -45,7 +45,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
   const currentBlogs = tab === 'posts' ? blogsData : bookmarkedData;
 
-  const slideVariants = {
+  const slideVariants: Variants = {
     hidden: (direction: number) => ({
       x: direction > 0 ? 30 : -30,
       opacity: 0,
